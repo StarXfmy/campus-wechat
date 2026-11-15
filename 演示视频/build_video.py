@@ -48,6 +48,12 @@ SCENES = [
 ]
 
 TAIL = 0.6  # 旁白结束后保留的画面余量
+
+# 会话列表会拍到别人的群名、昵称和消息预览，整块打码（11-15 就定过这条）。
+# 打码框按输出画面坐标：源 x 450..920 → 缩放 0.986 → 再右移 229 补齐
+BLUR_LIST = True
+LIST_BOX = (229, 0, 463, 990)
+
 BASE_VF = (
     "crop=1470:1004:450:254,scale=-2:%d,pad=%d:%d:(%d-iw)/2:0:%s,setsar=1"
     % (H - BAND, W, H, W, BG.replace("#", "0x"))
@@ -140,7 +146,8 @@ def build_scene(sid: str, spec: dict) -> pathlib.Path:
         else:
             make_card(png, [
                 ("谢谢观看", 82, INK),
-                ("三进程链路 · 严格触发 · 本地语音与识图", 40, ACCENT),                ("慢，是它像人的代价", 28, ACCENT),
+                ("三进程链路 · 严格触发 · 本地语音与识图", 40, ACCENT),
+                ("慢，是它像人的代价", 28, ACCENT),
             ])
         main_in = ["-loop", "1", "-framerate", str(FPS), "-t", "%.3f" % dur,
                    "-i", rel(png)]
@@ -162,7 +169,15 @@ def build_scene(sid: str, spec: dict) -> pathlib.Path:
         sub_in += ["-loop", "1", "-framerate", str(FPS), "-t", "%.3f" % dur,
                    "-i", rel(png)]
 
-    parts = ["[0:v]%s,fps=%d[base]" % (vf, FPS)]
+    parts = ["[0:v]%s,fps=%d[raw]" % (vf, FPS)]
+    if BLUR_LIST and "card" not in spec:
+        bx, by, bw, bh = LIST_BOX
+        parts.append(
+            "[raw]split=2[bgb][fg];[fg]crop=%d:%d:%d:%d,boxblur=14:2[bl];"
+            "[bgb][bl]overlay=%d:%d[base]" % (bw, bh, bx, by, bx, by)
+        )
+    else:
+        parts[0] = parts[0].replace("[raw]", "[base]")
     cur = "[base]"
     for i, (s, e, _t) in enumerate(cue_list):
         nxt = "[c%d]" % i
