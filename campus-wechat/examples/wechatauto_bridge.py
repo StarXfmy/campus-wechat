@@ -1657,10 +1657,14 @@ def main():
                 return
             # 群里的表情/图片：只认 @ 的前一条和后一条，其余一律跳过。
             # 线程池只有 1 个 worker，一张要 11-15 秒且串行，认多了后面全卡。
+            _is_follow_at = False
             if username.endswith("@chatroom") and mtype in ("图片", "表情", "动画表情"):
                 if username in _next_media:
                     # 这是 @ 之后的紧跟一条 → 认，然后关掉这个名额
                     _next_media.discard(username)
+                    # 认完还要当成「已被 @」：换成描述文字后，里面既没有 @ 也没有
+                    # 「木鱼」，不补这一句的话严格触发判定会把刚认出来的图拦掉（实测如此）。
+                    _is_follow_at = True
                 else:
                     # @ 之前的最后一条 → 存着等 @ 时补认；被新的媒体消息覆盖
                     _probe_last[username] = (msg, mtype)
@@ -1751,7 +1755,7 @@ def main():
             # WeChat 会在 @昵称 后插入 U+2005，先换成普通空格再判定。
             import re as _mention_re
             _at_text = content.replace("\u2005", " ")
-            addressed = any(
+            addressed = _is_follow_at or any(
                 a and _mention_re.search(
                     r"@\s*" + _mention_re.escape(str(a)) + r"(?=$|[\s，,：:！!~～…?？。\-—])",
                     _at_text,
@@ -1838,7 +1842,7 @@ def main():
 
             log("准备转发：", ("群" if is_group else "私聊"), "chat_id=%s msg_id=%s" % (
                 username, payload["msg_id"]))
-            is_master = bool(MASTER_WXID) and username == MASTER_WXID
+            is_master = bool(MASTER_WXID) and MASTER_WXID in (sender, username)
             _quiet_word = ""
 
             # python 引擎：平台判定在本地做，鲸鲸只作为可回退选项（WX_ENGINE=whale）
