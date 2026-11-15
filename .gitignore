@@ -1,0 +1,16 @@
+# 中间产物与本地调试脚本（含本机路径、账号 wxid，不进仓库）
+_work/
+*.docx
+*.pdf
+
+# 本地运行产物
+data/
+config.json
+*.log
+node_modules/
+runtime/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
